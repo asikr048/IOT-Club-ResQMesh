@@ -15,7 +15,7 @@ export const UploadJsonModal: React.FC<UploadJsonModalProps> = ({
   onClose,
   onSuccess,
 }) => {
-  const [activeTab, setActiveTab] = useState<'FILE' | 'PASTE' | 'CURL_GUIDE'>('FILE');
+  const [activeTab, setActiveTab] = useState<'FILE' | 'PASTE' | 'CURL_GUIDE' | 'ESP32_CODE'>('FILE');
   const [dragActive, setDragActive] = useState<boolean>(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [jsonText, setJsonText] = useState<string>('');
@@ -116,6 +116,29 @@ export const UploadJsonModal: React.FC<UploadJsonModalProps> = ({
 
   const curlCommand = `curl -X POST -F "file=@emergency_data.json" https://${typeof window !== 'undefined' ? window.location.host : 'your-app.vercel.app'}/api/mesh-data`;
   const rawCurlCommand = `curl -X POST -H "Content-Type: application/json" -d @emergency_data.json https://${typeof window !== 'undefined' ? window.location.host : 'your-app.vercel.app'}/api/mesh-data`;
+  const esp32CodeSnippet = `// ESP32 HTTPS POST to ResQMesh Dashboard
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include <HTTPClient.h>
+
+const char* serverUrl = "https://${typeof window !== 'undefined' ? window.location.host : 'your-app.vercel.app'}/api/mesh-data";
+
+void sendMeshTelemetry() {
+  WiFiClientSecure client;
+  client.setInsecure(); // Required for Vercel SSL handshake on ESP32
+
+  HTTPClient https;
+  if (https.begin(client, serverUrl)) {
+    https.addHeader("Content-Type", "application/json");
+    
+    // JSON with number_of_node, node_location, pending_help_message, dispatch_hoise_kina
+    String payload = "{\\"number_of_node\\":4,\\"node_location\\":[{\\"node_id\\":\\"GW-01\\",\\"latitude\\":23.0159,\\"longitude\\":91.3976,\\"battery_percentage\\":98}],\\"pending_help_message\\":[{\\"victim_name\\":\\"Rahim\\",\\"message\\":\\"Water rising\\",\\"dispatch_hoise_kina\\":\\"no\\"}]}";
+    
+    int code = https.POST(payload);
+    Serial.printf("[HTTPS] Response: %d\\n", code);
+    https.end();
+  }
+}`;
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -181,6 +204,16 @@ export const UploadJsonModal: React.FC<UploadJsonModalProps> = ({
             }`}
           >
             cURL / API Webhook
+          </button>
+          <button
+            onClick={() => setActiveTab('ESP32_CODE')}
+            className={`pb-2.5 px-3 text-xs font-mono font-bold border-b-2 transition ${
+              activeTab === 'ESP32_CODE'
+                ? 'border-cyan-400 text-cyan-300'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            ESP32 Arduino C++
           </button>
         </div>
 
@@ -290,6 +323,29 @@ export const UploadJsonModal: React.FC<UploadJsonModalProps> = ({
 
               <div className="p-2.5 rounded-lg bg-cyan-950/40 border border-cyan-800/40 text-[11px] text-cyan-200">
                 Endpoint URL: <span className="font-bold text-white">/api/mesh-data</span> or <span className="font-bold text-white">/api/upload</span>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: ESP32 Arduino Code */}
+          {activeTab === 'ESP32_CODE' && (
+            <div className="space-y-3 font-mono text-xs">
+              <div className="flex items-center justify-between text-slate-300 font-sans">
+                <span>Arduino C++ code for ESP32 (WiFiClientSecure & HTTPClient):</span>
+                <button
+                  onClick={() => copyToClipboard(esp32CodeSnippet)}
+                  className="text-cyan-400 hover:text-cyan-300 font-mono text-xs flex items-center gap-1"
+                >
+                  {copiedCurl ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  Copy Code
+                </button>
+              </div>
+              <pre className="p-3 rounded-lg bg-black/80 border border-slate-800 text-slate-200 overflow-x-auto text-[11px] max-h-56">
+                {esp32CodeSnippet}
+              </pre>
+              <div className="flex items-center justify-between text-[11px] pt-1">
+                <span className="text-slate-400 font-sans">Full .ino sketch saved in repo:</span>
+                <span className="text-cyan-400 font-mono">examples/esp32_lora_gateway_post.ino</span>
               </div>
             </div>
           )}
