@@ -43,10 +43,11 @@ export const TacticalMapInner: React.FC<TacticalMapInnerProps> = ({
       attributionControl: false,
     });
 
-    // Dark Matter Tactical Map Tiles (CartoDB)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    // Dark Tactical Map Tiles (Watermark-free, clean tactical inversion)
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      subdomains: 'abcd',
+      attribution: '&copy; OpenStreetMap contributors',
+      className: 'tactical-dark-tiles',
     }).addTo(map);
 
     // Zoom control in top right
@@ -175,8 +176,22 @@ export const TacticalMapInner: React.FC<TacticalMapInnerProps> = ({
 
     // 3. Render SOS Emergency Help Requests (Prominent pulsating victim pins)
     helpRequests.forEach(req => {
-      const isSaved = req.is_saved || req.dispatched === 'yes' || req.dispatch_status === 'RESOLVED';
-      const isDispatched = !isSaved && (req.dispatch_status === 'DISPATCHED' || req.dispatch_status === 'IN_TRANSIT');
+      const aidReq = req.aid_required && req.aid_required.length > 0 
+        ? req.aid_required 
+        : (req.needed_resources || []);
+      const aidArr = req.aid_arrived || [];
+      const dispatchedMats = req.dispatched_materials || [];
+
+      const arrivedCount = aidReq.filter((_, idx) => aidArr[idx] === 'yes').length;
+      const fullAidArrived = aidReq.length > 0 && arrivedCount === aidReq.length;
+      const isSaved = Boolean(req.all_aid_arrived || fullAidArrived || (req.is_saved && aidReq.length === 0));
+
+      const onMissionCount = aidReq.filter((item, idx) => {
+        const isArrived = aidArr[idx] === 'yes';
+        return !isArrived && (dispatchedMats.includes(item) || req.dispatch_status === 'DISPATCHED' || req.dispatch_status === 'IN_TRANSIT');
+      }).length;
+
+      const isDispatched = !isSaved && (onMissionCount > 0 || arrivedCount > 0 || req.dispatch_status === 'DISPATCHED' || req.dispatch_status === 'IN_TRANSIT');
       const isPending = !isSaved && !isDispatched;
       const isSelected = selectedRequest?.request_id === req.request_id;
 
@@ -220,16 +235,22 @@ export const TacticalMapInner: React.FC<TacticalMapInnerProps> = ({
       const sosMarker = L.marker([req.latitude, req.longitude], { icon: sosIcon });
 
       const statusBadge = isSaved
-        ? '<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-[0_0_8px_rgba(16,185,129,0.3)]">SAVED (উদ্ধার সম্পন্ন)</span>'
+        ? `<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-[0_0_8px_rgba(16,185,129,0.3)]">SAVED (${arrivedCount}/${aidReq.length} Arrived)</span>`
         : isDispatched
-        ? '<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-amber-500/20 text-amber-400 border border-amber-500/40">DISPATCHED (প্রেরিত)</span>'
+        ? `<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-amber-500/20 text-amber-400 border border-amber-500/40">ON MISSION (${arrivedCount}/${aidReq.length} Delivered)</span>`
         : '<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-red-500/20 text-red-400 border border-red-500/40">PENDING (সাহায্য প্রয়োজন)</span>';
 
-      const aidList = req.aid_required && req.aid_required.length > 0 
-        ? req.aid_required 
-        : (req.needed_resources || []);
-
-      const aidBadges = aidList.map(a => `<span class="px-1.5 py-0.5 rounded bg-slate-800 text-cyan-300 border border-slate-700 text-[10px] font-mono">${a}</span>`).join(' ');
+      const aidBadges = aidReq.map((a, idx) => {
+        const hasArrived = aidArr[idx] === 'yes';
+        const inMission = !hasArrived && (dispatchedMats.includes(a) || req.dispatch_status === 'DISPATCHED' || req.dispatch_status === 'IN_TRANSIT');
+        if (hasArrived) {
+          return `<span class="px-1.5 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-700/60 text-[10px] font-mono">✓ ${a}</span>`;
+        }
+        if (inMission) {
+          return `<span class="px-1.5 py-0.5 rounded bg-amber-950/80 text-amber-300 border border-amber-700/60 text-[10px] font-mono animate-pulse">🚚 ${a}</span>`;
+        }
+        return `<span class="px-1.5 py-0.5 rounded bg-slate-800 text-cyan-300 border border-slate-700 text-[10px] font-mono">+ ${a}</span>`;
+      }).join(' ');
 
       const popupHtml = `
         <div class="p-2.5 font-sans min-w-[240px]">
@@ -243,7 +264,7 @@ export const TacticalMapInner: React.FC<TacticalMapInnerProps> = ({
           <p class="text-xs text-slate-200 bg-slate-900/80 p-2 rounded border border-slate-800 mb-2 font-mono">
             "${req.message}"
           </p>
-          ${aidList.length > 0 ? `
+          ${aidReq.length > 0 ? `
             <div class="text-[11px] mb-2 flex items-center gap-1 flex-wrap">
               <span class="text-slate-400 font-mono text-[10px]">Aid:</span>
               ${aidBadges}
@@ -294,12 +315,12 @@ export const TacticalMapInner: React.FC<TacticalMapInnerProps> = ({
   }, [selectedNode, selectedRequest]);
 
   return (
-    <div className="relative w-full h-full rounded-xl overflow-hidden border border-slate-800 bg-[#070b14]">
+    <div className="relative isolate z-0 w-full h-full rounded-xl overflow-hidden border border-slate-800 bg-[#070b14]">
       {/* Map Container */}
       <div ref={mapContainerRef} className="w-full h-full min-h-[440px]" />
 
       {/* Map HUD Overlay Controls */}
-      <div className="absolute top-3 left-3 z-[400] flex flex-col gap-1.5 bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-lg p-2 text-xs font-mono">
+      <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5 bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-lg p-2 text-xs font-mono">
         <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-cyan-400"></span> Tactical Map Legend
         </div>
@@ -318,7 +339,7 @@ export const TacticalMapInner: React.FC<TacticalMapInnerProps> = ({
       </div>
 
       {/* Quick Center Reset Button */}
-      <div className="absolute bottom-3 right-3 z-[400]">
+      <div className="absolute bottom-3 right-3 z-10">
         <button
           onClick={() => {
             if (mapRef.current && nodes.length > 0) {

@@ -167,6 +167,7 @@ void sendEmergencyMeshTelemetry() {
   jsonPayload += "\"Medicine arrived\":\"" + String(medicineArrived) + "\",";
   jsonPayload += "\"medicine disatched\":\"" + String(medicineDispatched) + "\",";
   jsonPayload += "\"aid required\":[\"rescue boat\",\"oxygen cylinder\",\"drinking water\",\"first aid box\"],";
+  jsonPayload += "\"aid arrived\":[\"yes\",\"yes\",\"no\",\"no\"],";
   jsonPayload += "\"dispatched\":\"" + String(dispatchedStatus) + "\"";
   jsonPayload += "}";
 

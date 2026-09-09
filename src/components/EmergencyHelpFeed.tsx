@@ -26,6 +26,7 @@ interface EmergencyHelpFeedProps {
   onSelectRequest: (request: HelpRequest) => void;
   onOpenDispatchModal: (request: HelpRequest) => void;
   onQuickDispatch: (requestId: string) => void;
+  onToggleMaterialDispatch?: (requestId: string, material: string) => void;
 }
 
 const getAidIcon = (name: string) => {
@@ -37,6 +38,47 @@ const getAidIcon = (name: string) => {
   return '📦';
 };
 
+export const getAidMetrics = (req: HelpRequest) => {
+  const aidReq = req.aid_required && req.aid_required.length > 0 
+    ? req.aid_required 
+    : (req.needed_resources && req.needed_resources.length > 0 ? req.needed_resources : []);
+
+  const aidArr = req.aid_arrived || [];
+  const dispatchedMats = req.dispatched_materials || [];
+
+  const arrivedCount = aidReq.filter((_, idx) => aidArr[idx] === 'yes').length;
+  const isFullAidArrived = aidReq.length > 0 && arrivedCount === aidReq.length;
+
+  const onMissionCount = aidReq.filter((item, idx) => {
+    const isArrived = aidArr[idx] === 'yes';
+    const isDispatched = dispatchedMats.includes(item);
+    return !isArrived && (isDispatched || req.dispatch_status === 'DISPATCHED' || req.dispatch_status === 'IN_TRANSIT');
+  }).length;
+
+  const pendingCount = aidReq.length - arrivedCount - onMissionCount;
+
+  // Strict Saved condition: Only saved when full aid arrived or explicitly marked with 0 requirements
+  const isSaved = Boolean(req.all_aid_arrived || isFullAidArrived || (req.is_saved && aidReq.length === 0));
+
+  const effectiveStatus: DispatchStatus = isSaved
+    ? 'RESOLVED'
+    : (onMissionCount > 0 || arrivedCount > 0 || req.dispatch_status === 'IN_TRANSIT' || req.dispatch_status === 'DISPATCHED')
+    ? 'IN_TRANSIT'
+    : 'PENDING';
+
+  return {
+    aidReq,
+    aidArr,
+    dispatchedMats,
+    arrivedCount,
+    onMissionCount,
+    pendingCount,
+    isFullAidArrived,
+    isSaved,
+    effectiveStatus
+  };
+};
+
 export const EmergencyHelpFeed: React.FC<EmergencyHelpFeedProps> = ({
   requests,
   filterStatus,
@@ -45,13 +87,16 @@ export const EmergencyHelpFeed: React.FC<EmergencyHelpFeedProps> = ({
   onSelectRequest,
   onOpenDispatchModal,
   onQuickDispatch,
+  onToggleMaterialDispatch,
 }) => {
   // Filtering logic
   const filteredRequests = requests.filter(req => {
-    const isSaved = req.is_saved || req.dispatched === 'yes' || req.dispatch_status === 'RESOLVED';
+    const metrics = getAidMetrics(req);
+    const isSaved = metrics.isSaved;
+
     // Status filter
     if (filterStatus === 'PENDING' && isSaved) return false;
-    if (filterStatus === 'DISPATCHED' && (isSaved || req.dispatch_status !== 'DISPATCHED')) return false;
+    if (filterStatus === 'DISPATCHED' && (isSaved || metrics.effectiveStatus !== 'IN_TRANSIT')) return false;
     if (filterStatus === 'RESOLVED' && !isSaved) return false;
 
     // Search query filter
@@ -91,28 +136,32 @@ export const EmergencyHelpFeed: React.FC<EmergencyHelpFeedProps> = ({
   };
 
   const getDispatchBadge = (req: HelpRequest) => {
-    const isSaved = req.is_saved || req.dispatched === 'yes' || req.dispatch_status === 'RESOLVED';
+    const metrics = getAidMetrics(req);
 
-    if (isSaved) {
+    if (metrics.isSaved) {
       return (
         <div className="flex flex-col items-end">
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold font-mono tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold font-mono tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.25)]">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
             SAVED
           </span>
-          <span className="text-[10px] text-emerald-400/90 font-mono mt-0.5">উদ্ধার সম্পন্ন (Saved)</span>
+          <span className="text-[10px] text-emerald-400 font-mono mt-0.5">
+            উদ্ধার সম্পন্ন ({metrics.arrivedCount}/{metrics.aidReq.length} Arrived)
+          </span>
         </div>
       );
     }
 
-    if (req.dispatch_status === 'DISPATCHED' || req.dispatch_status === 'IN_TRANSIT') {
+    if (metrics.effectiveStatus === 'IN_TRANSIT') {
       return (
         <div className="flex flex-col items-end">
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold font-mono tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/40">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold font-mono tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.25)] animate-pulse">
             <Truck className="w-3.5 h-3.5 text-amber-400" />
-            DISPATCHED
+            ON MISSION
           </span>
-          <span className="text-[10px] text-amber-400/80 font-mono mt-0.5">উদ্ধারকারী প্রেরিত</span>
+          <span className="text-[10px] text-amber-400 font-mono mt-0.5">
+            অভিযান চলমান ({metrics.arrivedCount}/{metrics.aidReq.length} Delivered)
+          </span>
         </div>
       );
     }
@@ -151,7 +200,7 @@ export const EmergencyHelpFeed: React.FC<EmergencyHelpFeedProps> = ({
         </div>
 
         <div className="text-xs font-mono text-slate-400 hidden sm:block">
-          Saved Lifecycle: <span className="text-emerald-400 font-bold">Dispatched = Yes</span>
+          Saved Condition: <span className="text-emerald-400 font-bold">100% Aid Arrived = SAVED</span>
         </div>
       </div>
 
@@ -165,13 +214,11 @@ export const EmergencyHelpFeed: React.FC<EmergencyHelpFeedProps> = ({
         ) : (
           filteredRequests.map(req => {
             const isSelected = selectedRequest?.request_id === req.request_id;
-            const isSaved = req.is_saved || req.dispatched === 'yes' || req.dispatch_status === 'RESOLVED';
-            const isPending = !isSaved && req.dispatch_status === 'PENDING';
-
-            // Gather aid materials (from aid_required or needed_resources)
-            const aidList = req.aid_required && req.aid_required.length > 0 
-              ? req.aid_required 
-              : (req.needed_resources && req.needed_resources.length > 0 ? req.needed_resources : ['rescue boat', 'drinking water']);
+            const metrics = getAidMetrics(req);
+            const isSaved = metrics.isSaved;
+            const isOnMission = !isSaved && metrics.effectiveStatus === 'IN_TRANSIT';
+            const isPending = !isSaved && !isOnMission;
+            const aidList = metrics.aidReq;
 
             return (
               <div
@@ -181,7 +228,9 @@ export const EmergencyHelpFeed: React.FC<EmergencyHelpFeedProps> = ({
                   isSelected
                     ? 'bg-slate-800/90 border-cyan-500/60 shadow-[0_0_20px_rgba(6,182,212,0.15)] ring-1 ring-cyan-500/40'
                     : isSaved
-                    ? 'bg-emerald-950/15 border-emerald-900/40 hover:border-emerald-600/50'
+                    ? 'bg-emerald-950/20 border-emerald-900/50 hover:border-emerald-600/50'
+                    : isOnMission
+                    ? 'bg-gradient-to-r from-amber-950/25 to-slate-900/80 border-amber-900/50 hover:border-amber-600/60'
                     : isPending
                     ? 'bg-gradient-to-r from-red-950/30 to-slate-900/80 border-red-900/40 hover:border-red-600/50'
                     : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
@@ -222,7 +271,7 @@ export const EmergencyHelpFeed: React.FC<EmergencyHelpFeedProps> = ({
                 </div>
 
                 {/* LoRa Telemetry Status Strip (Rescue & Medicine Flags) */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mb-2.5 text-[10px] font-mono">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mb-3 text-[10px] font-mono">
                   <div className={`px-2 py-1 rounded border flex items-center justify-between ${
                     req.rescue_needed !== false ? 'bg-red-950/40 border-red-800/60 text-red-300' : 'bg-slate-900/60 border-slate-800 text-slate-500'
                   }`}>
@@ -231,48 +280,127 @@ export const EmergencyHelpFeed: React.FC<EmergencyHelpFeedProps> = ({
                   </div>
 
                   <div className={`px-2 py-1 rounded border flex items-center justify-between ${
-                    req.rescue_arrived ? 'bg-emerald-950/40 border-emerald-800/60 text-emerald-300' : 'bg-slate-900/60 border-slate-800 text-slate-500'
+                    req.rescue_arrived || metrics.arrivedCount > 0 ? 'bg-emerald-950/40 border-emerald-800/60 text-emerald-300' : 'bg-slate-900/60 border-slate-800 text-slate-500'
                   }`}>
                     <span>Resq Arrived:</span>
-                    <span className="font-bold">{req.rescue_arrived ? 'YES ✓' : 'NO'}</span>
+                    <span className="font-bold">{req.rescue_arrived || metrics.arrivedCount > 0 ? 'YES ✓' : 'NO'}</span>
                   </div>
 
                   <div className={`px-2 py-1 rounded border flex items-center justify-between ${
-                    req.medicine_dispatched ? 'bg-amber-950/40 border-amber-800/60 text-amber-300' : 'bg-slate-900/60 border-slate-800 text-slate-500'
+                    req.medicine_dispatched || isOnMission ? 'bg-amber-950/40 border-amber-800/60 text-amber-300' : 'bg-slate-900/60 border-slate-800 text-slate-500'
                   }`}>
-                    <span>Med Dispatched:</span>
-                    <span className="font-bold">{req.medicine_dispatched ? 'YES ✓' : 'NO'}</span>
+                    <span>Dispatched:</span>
+                    <span className="font-bold">{req.medicine_dispatched || isOnMission || isSaved ? 'YES ✓' : 'NO'}</span>
                   </div>
 
                   <div className={`px-2 py-1 rounded border flex items-center justify-between ${
-                    req.medicine_arrived ? 'bg-emerald-950/40 border-emerald-800/60 text-emerald-300' : 'bg-slate-900/60 border-slate-800 text-slate-500'
+                    req.medicine_arrived || isSaved ? 'bg-emerald-950/40 border-emerald-800/60 text-emerald-300' : 'bg-slate-900/60 border-slate-800 text-slate-500'
                   }`}>
-                    <span>Med Arrived:</span>
-                    <span className="font-bold">{req.medicine_arrived ? 'YES ✓' : 'NO'}</span>
+                    <span>Full Saved:</span>
+                    <span className="font-bold">{isSaved ? 'YES ✓' : 'NO'}</span>
                   </div>
                 </div>
 
-                {/* Requested Materials Buttons */}
-                <div className="mb-2.5">
-                  <span className="text-[10px] font-mono uppercase text-slate-400 block mb-1.5 font-semibold tracking-wider">
-                    Requested Aid Materials (প্রয়োজনীয় সামগ্রী):
-                  </span>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {aidList.map((item, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onOpenDispatchModal(req);
-                        }}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 hover:border-cyan-500/50 shadow-sm transition active:scale-95"
-                        title={`Click to dispatch ${item}`}
-                      >
-                        <span>{getAidIcon(item)}</span>
-                        <span className="capitalize">{item}</span>
-                      </button>
-                    ))}
+                {/* Requested Materials Buttons & Delivery Tracking */}
+                <div className="mb-3 p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/90">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] font-mono uppercase text-slate-400 font-bold tracking-wider flex items-center gap-1.5">
+                      <PackageCheck className="w-3.5 h-3.5 text-cyan-400" />
+                      Aid Materials (ক্লিক করে &apos;On Mission&apos; করুন):
+                    </span>
+                    <span className="text-[10px] font-mono">
+                      Arrived: <strong className={isSaved ? 'text-emerald-400' : 'text-amber-400'}>{metrics.arrivedCount}/{aidList.length}</strong>
+                    </span>
+                  </div>
+
+                  {/* Delivery Progress Bar */}
+                  {aidList.length > 0 && (
+                    <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden flex mb-2.5">
+                      <div 
+                        style={{ width: `${(metrics.arrivedCount / aidList.length) * 100}%` }} 
+                        className="bg-emerald-500 transition-all duration-500" 
+                        title={`${metrics.arrivedCount} Arrived`}
+                      />
+                      <div 
+                        style={{ width: `${(metrics.onMissionCount / aidList.length) * 100}%` }} 
+                        className="bg-amber-500 transition-all duration-500" 
+                        title={`${metrics.onMissionCount} On Mission`}
+                      />
+                    </div>
+                  )}
+
+                  {/* 3-State Interactive Buttons for each Material */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {aidList.map((item, idx) => {
+                      const isArrived = metrics.aidArr[idx] === 'yes';
+                      const isDispatched = metrics.dispatchedMats.includes(item);
+                      const isItemOnMission = !isArrived && (isDispatched || req.dispatch_status === 'DISPATCHED' || req.dispatch_status === 'IN_TRANSIT');
+
+                      if (isArrived) {
+                        return (
+                          <div
+                            key={idx}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-emerald-950/80 text-emerald-300 border border-emerald-600/70 shadow-[0_0_10px_rgba(16,185,129,0.2)]"
+                            title={`${item} has safely arrived`}
+                          >
+                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>{getAidIcon(item)}</span>
+                            <span className="capitalize">{item}</span>
+                            <span className="text-[10px] bg-emerald-800/80 text-white px-1 py-0.2 rounded font-bold">Arrived ✓</span>
+                          </div>
+                        );
+                      }
+
+                      if (isItemOnMission) {
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onToggleMaterialDispatch?.(req.request_id, item);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-amber-500/25 hover:bg-amber-500/40 text-amber-200 border border-amber-500/70 shadow-[0_0_12px_rgba(245,158,11,0.3)] animate-pulse transition active:scale-95"
+                            title={`Click to recall or toggle mission for ${item}`}
+                          >
+                            <Truck className="w-3.5 h-3.5 text-amber-400" />
+                            <span>{getAidIcon(item)}</span>
+                            <span className="capitalize">{item}</span>
+                            <span className="text-[10px] bg-amber-600/50 text-amber-100 px-1 py-0.2 rounded font-bold">On Mission 🚚</span>
+                          </button>
+                        );
+                      }
+
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleMaterialDispatch?.(req.request_id, item);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-semibold bg-slate-800 hover:bg-cyan-950 text-cyan-300 hover:text-cyan-100 border border-slate-700 hover:border-cyan-500/60 shadow-sm transition active:scale-95 group/btn"
+                          title={`Click to dispatch ${item} into 'On Mission'`}
+                        >
+                          <span className="text-cyan-400 font-bold group-hover/btn:scale-125 transition">+</span>
+                          <span>{getAidIcon(item)}</span>
+                          <span className="capitalize">{item}</span>
+                          <span className="text-[10px] bg-slate-900 text-slate-400 px-1 py-0.2 rounded">Dispatch</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Informational Truthful Status Tag */}
+                  <div className="mt-2 pt-1.5 border-t border-slate-800/60 text-[10px] font-mono text-slate-400 flex items-center justify-between">
+                    <span>
+                      {isSaved 
+                        ? '✅ Full Aid Arrived: Node marked SAVED.' 
+                        : isOnMission 
+                        ? '🚚 Loads Dispatched / In Transit (On Mission).' 
+                        : '⏱ Pending Dispatch: Click aid button to launch mission.'}
+                    </span>
+                    <span className="text-slate-500 italic">No false reports</span>
                   </div>
                 </div>
 
@@ -281,20 +409,24 @@ export const EmergencyHelpFeed: React.FC<EmergencyHelpFeedProps> = ({
                   &ldquo;{req.message}&rdquo;
                 </div>
 
-                {/* Dispatched Team Info (if dispatched or saved) */}
-                {req.dispatched_team && (
+                {/* Dispatched Team Info (if on mission or saved) */}
+                {(req.dispatched_team || isOnMission || isSaved) && (
                   <div className={`p-2 rounded-lg border text-xs mb-2.5 font-mono flex items-center justify-between ${
                     isSaved 
                       ? 'bg-emerald-950/30 border-emerald-800/40 text-emerald-200' 
                       : 'bg-amber-950/30 border-amber-800/40 text-amber-200'
                   }`}>
                     <div>
-                      <span className="text-slate-400 text-[10px] block">Assigned Unit:</span>
-                      <span className="font-bold">{req.dispatched_team}</span>
+                      <span className="text-slate-400 text-[10px] block">
+                        {isSaved ? 'Rescue Status:' : 'Mission Operations:'}
+                      </span>
+                      <span className="font-bold">
+                        {req.dispatched_team || (isSaved ? 'Rescue Completed (Saved)' : 'Response Unit (On Mission)')}
+                      </span>
                     </div>
-                    {req.dispatch_time && (
+                    {(req.dispatch_time || req.resolved_time) && (
                       <div className="text-right text-[10px] text-slate-400">
-                        {new Date(req.dispatch_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(req.resolved_time || req.dispatch_time || req.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     )}
                   </div>
@@ -302,9 +434,9 @@ export const EmergencyHelpFeed: React.FC<EmergencyHelpFeedProps> = ({
 
                 {/* Action Buttons: Dispatch & Save */}
                 <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2">
-                  <div className="text-[10px] font-mono text-slate-500">
-                    Dispatched: <span className={isSaved ? 'text-emerald-400 font-bold' : 'text-slate-400'}>
-                      {req.dispatched === 'yes' || isSaved ? 'YES (SAVED)' : 'NO'}
+                  <div className="text-[10px] font-mono text-slate-400">
+                    Status: <span className={isSaved ? 'text-emerald-400 font-bold' : isOnMission ? 'text-amber-400 font-bold' : 'text-red-400 font-bold'}>
+                      {isSaved ? 'SAVED (উদ্ধার সম্পন্ন)' : isOnMission ? 'ON MISSION (চলমান)' : 'PENDING (অপেক্ষমান)'}
                     </span>
                   </div>
 

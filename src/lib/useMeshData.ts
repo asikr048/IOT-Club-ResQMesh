@@ -227,6 +227,91 @@ export function useMeshData() {
     }
   };
 
+  // Action: Toggle Material Dispatch ("On Mission")
+  const toggleMaterialDispatch = async (requestId: string, materialName: string) => {
+    // Optimistic UI update
+    if (data) {
+      setData(prev => {
+        if (!prev) return prev;
+        const updatedRequests = prev.help_requests.map(req => {
+          if (req.request_id === requestId) {
+            const currentDispatched = req.dispatched_materials || [];
+            const isAlreadyDispatched = currentDispatched.includes(materialName);
+            const updatedDispatched = isAlreadyDispatched
+              ? currentDispatched.filter(m => m !== materialName)
+              : [...currentDispatched, materialName];
+
+            const aidReq = req.aid_required || [];
+            const aidArr = req.aid_arrived || [];
+            const fullAidArrived = aidReq.length > 0 &&
+              aidArr.length >= aidReq.length &&
+              aidArr.every(v => v === 'yes');
+
+            const anyAidArrived = aidArr.some(v => v === 'yes');
+            const anyOnMission = updatedDispatched.length > 0;
+            const isSaved = fullAidArrived;
+
+            let newStatus: DispatchStatus = 'PENDING';
+            if (isSaved) {
+              newStatus = 'RESOLVED';
+            } else if (anyAidArrived || anyOnMission) {
+              newStatus = 'IN_TRANSIT';
+            } else {
+              newStatus = 'PENDING';
+            }
+
+            return {
+              ...req,
+              dispatched_materials: updatedDispatched,
+              dispatch_status: newStatus,
+              dispatched: (isSaved || anyOnMission) ? ('yes' as const) : ('no' as const),
+              is_saved: isSaved,
+              all_aid_arrived: fullAidArrived,
+              dispatched_team: anyOnMission ? (req.dispatched_team || 'Response Unit (On Mission)') : (isSaved ? 'Rescue Team Alpha' : null),
+              dispatch_time: anyOnMission && !req.dispatch_time ? new Date().toISOString() : req.dispatch_time,
+              resolved_time: isSaved ? (req.resolved_time || new Date().toISOString()) : null
+            };
+          }
+          return req;
+        });
+
+        const pending = updatedRequests.filter(r => r.dispatch_status === 'PENDING' && !r.is_saved).length;
+        const dispatched = updatedRequests.filter(r => (r.dispatch_status === 'DISPATCHED' || r.dispatch_status === 'IN_TRANSIT') && !r.is_saved).length;
+        const resolved = updatedRequests.filter(r => r.dispatch_status === 'RESOLVED' || r.is_saved).length;
+
+        return {
+          ...prev,
+          network: {
+            ...prev.network,
+            pending_sos_count: pending,
+            dispatched_count: dispatched,
+            resolved_count: resolved
+          },
+          help_requests: updatedRequests
+        };
+      });
+
+      if (soundEnabled) {
+        playDispatchChime();
+      }
+    }
+
+    try {
+      await fetch('/api/mesh-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'toggle_material_dispatch',
+          request_id: requestId,
+          material: materialName
+        })
+      });
+      setTimeout(() => fetchData(), 400);
+    } catch (err) {
+      console.error('Failed to toggle material dispatch', err);
+    }
+  };
+
   return {
     data,
     loading,
@@ -260,6 +345,7 @@ export function useMeshData() {
     fetchData,
     updateDispatch,
     sendBroadcast,
-    simulateSos
+    simulateSos,
+    toggleMaterialDispatch
   };
 }

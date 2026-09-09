@@ -70,6 +70,7 @@ body {
 .leaflet-container {
   background-color: #060911 !important;
   font-family: inherit !important;
+  z-index: 1 !important;
 }
 
 .leaflet-popup-content-wrapper {
@@ -94,4 +95,9 @@ body {
 .leaflet-control-zoom-out:hover {
   background-color: #334155 !important;
   color: #ffffff !important;
+}
+
+/* Tactical Dark Map Tiles (Clean OpenStreetMap filter, no watermark) */
+.tactical-dark-tiles {
+  filter: invert(100%) hue-rotate(180deg) brightness(85%) contrast(120%) saturate(0.25) !important;
 }

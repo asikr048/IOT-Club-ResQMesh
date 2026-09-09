@@ -131,8 +131,8 @@ void sendMeshTelemetry() {
   if (https.begin(client, serverUrl)) {
     https.addHeader("Content-Type", "application/json");
     
-    // 3 Nodes JSON: Rescue Needed, Resque Arrived, Medicine arrived, medicine disatched, aid required, dispatched
-    String payload = "[{\\"node_id\\":\\"GW-01\\",\\"latitude\\":23.0159,\\"longitude\\":91.3976,\\"Rescue Needed\\":\\"no\\",\\"dispatched\\":\\"no\\"},{\\"node_id\\":\\"SOS-03\\",\\"latitude\\":23.0722,\\"longitude\\":91.4650,\\"Rescue Needed\\":\\"yes\\",\\"Resque Arrived\\":\\"no\\",\\"Medicine arrived\\":\\"no\\",\\"medicine disatched\\":\\"no\\",\\"aid required\\":[\\"rescue boat\\",\\"oxygen cylinder\\",\\"drinking water\\",\\"first aid box\\"],\\"dispatched\\":\\"no\\"}]";
+    // 3 Nodes JSON: Rescue Needed, Resque Arrived, Medicine arrived, medicine disatched, aid required, aid arrived, dispatched
+    String payload = "[{\\"node_id\\":\\"GW-01\\",\\"latitude\\":23.0159,\\"longitude\\":91.3976,\\"Rescue Needed\\":\\"no\\",\\"dispatched\\":\\"no\\"},{\\"node_id\\":\\"SOS-03\\",\\"latitude\\":23.0722,\\"longitude\\":91.4650,\\"Rescue Needed\\":\\"yes\\",\\"Resque Arrived\\":\\"no\\",\\"Medicine arrived\\":\\"no\\",\\"medicine disatched\\":\\"no\\",\\"aid required\\":[\\"rescue boat\\",\\"oxygen cylinder\\",\\"drinking water\\",\\"first aid box\\"],\\"aid arrived\\":[\\"yes\\",\\"yes\\",\\"no\\",\\"no\\"],\\"dispatched\\":\\"no\\"}]";
     
     int code = https.POST(payload);
     Serial.printf("[HTTPS] Response: %d\\n", code);
@@ -147,7 +147,7 @@ void sendMeshTelemetry() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="w-full max-w-xl rounded-2xl border border-cyan-900/60 bg-slate-900/95 shadow-2xl overflow-hidden font-sans">
         
         {/* Header */}
@@ -277,7 +277,7 @@ void sendMeshTelemetry() {
                 rows={7}
                 value={jsonText}
                 onChange={(e) => setJsonText(e.target.value)}
-                placeholder={`[\n  {\n    "node_id": "GW-01",\n    "latitude": 23.0159,\n    "longitude": 91.3976,\n    "Rescue Needed": "no",\n    "dispatched": "no"\n  },\n  {\n    "node_id": "SOS-03",\n    "latitude": 23.0722,\n    "longitude": 91.4650,\n    "Rescue Needed": "yes",\n    "Resque Arrived": "no",\n    "Medicine arrived": "no",\n    "medicine disatched": "no",\n    "aid required": ["rescue boat", "oxygen cylinder", "drinking water", "first aid box"],\n    "dispatched": "no"\n  }\n]`}
+                placeholder={`[\n  {\n    "node_id": "GW-01",\n    "latitude": 23.0159,\n    "longitude": 91.3976,\n    "Rescue Needed": "no",\n    "dispatched": "no"\n  },\n  {\n    "node_id": "SOS-03",\n    "latitude": 23.0722,\n    "longitude": 91.4650,\n    "Rescue Needed": "yes",\n    "Resque Arrived": "no",\n    "Medicine arrived": "no",\n    "medicine disatched": "no",\n    "aid required": ["rescue boat", "oxygen cylinder", "drinking water", "first aid box"],\n    "aid arrived": ["yes", "yes", "no", "no"],\n    "dispatched": "no"\n  }\n]`}
                 className="w-full p-3 rounded-lg bg-slate-950 border border-slate-700 text-slate-200 font-mono text-xs focus:outline-none focus:border-cyan-500"
               />
             </div>

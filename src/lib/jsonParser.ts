@@ -181,13 +181,48 @@ export function parseSingleHelpRequest(raw: unknown, idx: number): HelpRequest {
   const rawAid = getFlexibleValue(rec, 'aid required', 'aid_required', 'aid', 'needed_resources', 'resources');
   const aidRequired = parseFlexibleList(rawAid);
 
+  // aid arrived (1-to-1 match e.g. ["yes", "yes", "no", "no"])
+  const rawAidArrived = getFlexibleValue(rec, 'aid arrived', 'aid_arrived', 'arrived');
+  let aidArrived: string[] = [];
+  if (Array.isArray(rawAidArrived)) {
+    aidArrived = rawAidArrived.map(v => parseFlexibleBoolean(v) ? 'yes' : 'no');
+  } else if (typeof rawAidArrived === 'string') {
+    aidArrived = rawAidArrived.split(/[,;\s]+/).map(v => parseFlexibleBoolean(v) ? 'yes' : 'no');
+  } else {
+    aidArrived = aidRequired.map(() => 'no');
+  }
+  while (aidArrived.length < aidRequired.length) {
+    aidArrived.push('no');
+  }
+
+  // dispatched_materials (materials clicked into 'On Mission')
+  const rawDispatchedMaterials = getFlexibleValue(rec, 'dispatched_materials');
+  const dispatchedMaterials = Array.isArray(rawDispatchedMaterials) ? rawDispatchedMaterials.map(String) : [];
+
+  // Full Aid Arrived check ("and after full aid arrived then it is saved. no false information")
+  const fullAidArrived = aidRequired.length > 0 && 
+    aidArrived.length >= aidRequired.length && 
+    aidArrived.every(val => val === 'yes');
+
+  const anyAidArrived = aidArrived.some(val => val === 'yes');
+  const anyOnMission = dispatchedMaterials.length > 0;
+
   // dispatched: yes or no
   const rawDispatched = getFlexibleValue(rec, 'dispatched', 'dispatch_hoise_kina', 'dispatch_status', 'is_dispatched');
   const isDispatchedYes = parseFlexibleBoolean(rawDispatched) || (typeof rawDispatched === 'string' && ['yes', 'true', 'saved', 'resolved', 'done'].includes(rawDispatched.trim().toLowerCase()));
 
-  // If dispatched is yes, then saved one!
-  const isSaved = isDispatchedYes || rescueArrived;
-  const dispatchStatus: DispatchStatus = isSaved ? 'RESOLVED' : (rawDispatched ? normalizeDispatchStatus(rawDispatched) : (rescueNeeded ? 'PENDING' : 'PENDING'));
+  // Saved ONLY when full aid has arrived OR explicitly marked saved
+  const isSaved = fullAidArrived || (isDispatchedYes && aidRequired.length === 0);
+
+  // Status: RESOLVED (all aid arrived), IN_TRANSIT (On Mission), PENDING (awaiting dispatch)
+  let dispatchStatus: DispatchStatus = 'PENDING';
+  if (isSaved) {
+    dispatchStatus = 'RESOLVED';
+  } else if (anyAidArrived || anyOnMission || isDispatchedYes) {
+    dispatchStatus = 'IN_TRANSIT';
+  } else if (rescueNeeded) {
+    dispatchStatus = 'PENDING';
+  }
 
   const rawMsg = getFlexibleValue(rec, 'message', 'pending_help_message', 'help_message', 'text');
   const message = rawMsg ? String(rawMsg) : (rescueNeeded ? `Emergency rescue needed. Requested aid: ${aidRequired.join(', ') || 'General Relief'}` : 'Emergency assistance requested via LoRa mesh');
@@ -210,15 +245,18 @@ export function parseSingleHelpRequest(raw: unknown, idx: number): HelpRequest {
     message: message,
     needed_resources: aidRequired.length > 0 ? aidRequired : ['Rescue Boat', 'Emergency Supplies'],
     aid_required: aidRequired,
+    aid_arrived: aidArrived,
+    dispatched_materials: dispatchedMaterials,
+    all_aid_arrived: fullAidArrived,
     rescue_needed: rescueNeeded,
-    rescue_arrived: rescueArrived,
+    rescue_arrived: rescueArrived || anyAidArrived,
     medicine_arrived: medicineArrived,
     medicine_dispatched: medicineDispatched,
-    dispatched: isDispatchedYes ? 'yes' : 'no',
+    dispatched: (isSaved || anyOnMission || isDispatchedYes) ? 'yes' : 'no',
     is_saved: isSaved,
     dispatch_status: dispatchStatus,
-    dispatched_team: getFlexibleValue(rec, 'dispatched_team') ? String(getFlexibleValue(rec, 'dispatched_team')) : (isSaved ? 'Assigned Response Unit' : null),
-    dispatch_time: isDispatchedYes ? new Date().toISOString() : null,
+    dispatched_team: getFlexibleValue(rec, 'dispatched_team') ? String(getFlexibleValue(rec, 'dispatched_team')) : (isSaved ? 'Rescue Team Alpha' : (anyOnMission ? 'Response Unit (On Mission)' : null)),
+    dispatch_time: (isDispatchedYes || anyOnMission) ? new Date().toISOString() : null,
     resolved_time: isSaved ? new Date().toISOString() : null,
     notes: getFlexibleValue(rec, 'notes') ? String(getFlexibleValue(rec, 'notes')) : undefined,
     timestamp: new Date().toISOString(),
@@ -254,6 +292,7 @@ export function normalizeIncomingJson(
   const importedRequests: HelpRequest[] = [];
 
   // CASE 1: Array at root (e.g. 3 nodes: [ { "node id": "GW-01", ... }, ... ])
+  // The amount of JSON sent is the exact number of LoRa nodes!
   if (Array.isArray(input)) {
     input.forEach((item, idx) => {
       if (typeof item !== 'object' || !item) return;
@@ -274,6 +313,9 @@ export function normalizeIncomingJson(
         importedRequests.push(parseSingleHelpRequest(rec, idx));
       }
     });
+
+    // Exact count of nodes matches the amount of JSON items sent
+    newStore.nodes = importedNodes;
   } else {
     // CASE 2: Object at root
     const root = input as Record<string, unknown>;
@@ -305,6 +347,7 @@ export function normalizeIncomingJson(
           importedRequests.push(parseSingleHelpRequest(rec, i));
         }
       });
+      newStore.nodes = importedNodes;
     } else if (rawNodes && typeof rawNodes === 'object') {
       importedNodes.push(parseSingleNode(rawNodes, 0));
     }
@@ -339,24 +382,40 @@ export function normalizeIncomingJson(
     }
   }
 
-  // Merge Nodes (update existing by node_id or append)
-  if (importedNodes.length > 0) {
-    importedNodes.forEach(newNode => {
-      const idx = newStore.nodes.findIndex(n => n.node_id === newNode.node_id);
-      if (idx !== -1) {
-        newStore.nodes[idx] = { ...newStore.nodes[idx], ...newNode, last_seen: new Date().toISOString() };
-      } else {
-        newStore.nodes.unshift(newNode);
-      }
-    });
-  }
-
-  // Merge Help Requests (update existing by request_id or node_id or append)
+  // Merge Help Requests (preserve previously clicked dispatched_materials across packet updates)
   if (importedRequests.length > 0) {
     importedRequests.forEach(newReq => {
       const idx = newStore.help_requests.findIndex(r => r.request_id === newReq.request_id || r.node_id === newReq.node_id);
       if (idx !== -1) {
-        newStore.help_requests[idx] = { ...newStore.help_requests[idx], ...newReq };
+        const existing = newStore.help_requests[idx];
+        const mergedDispatchedMaterials = Array.from(new Set([
+          ...(existing.dispatched_materials || []),
+          ...(newReq.dispatched_materials || [])
+        ]));
+
+        const fullAidArrived = newReq.aid_required && newReq.aid_required.length > 0 &&
+          newReq.aid_arrived && newReq.aid_arrived.length >= newReq.aid_required.length &&
+          newReq.aid_arrived.every(v => v === 'yes');
+
+        const anyAidArrived = newReq.aid_arrived && newReq.aid_arrived.some(v => v === 'yes');
+        const anyOnMission = mergedDispatchedMaterials.length > 0;
+        const isSaved = Boolean(fullAidArrived || newReq.is_saved);
+
+        const status: DispatchStatus = isSaved 
+          ? 'RESOLVED' 
+          : (anyAidArrived || anyOnMission || newReq.dispatch_status === 'DISPATCHED' || newReq.dispatch_status === 'IN_TRANSIT') 
+          ? 'IN_TRANSIT' 
+          : 'PENDING';
+
+        newStore.help_requests[idx] = {
+          ...existing,
+          ...newReq,
+          dispatched_materials: mergedDispatchedMaterials,
+          all_aid_arrived: fullAidArrived,
+          is_saved: isSaved,
+          dispatch_status: status,
+          dispatched: (isSaved || anyOnMission) ? 'yes' : newReq.dispatched
+        };
       } else {
         newStore.help_requests.unshift(newReq);
       }

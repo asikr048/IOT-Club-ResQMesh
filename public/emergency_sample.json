@@ -38,6 +38,12 @@
       "drinking water",
       "first aid box"
     ],
+    "aid arrived": [
+      "yes",
+      "yes",
+      "no",
+      "no"
+    ],
     "dispatched": "no"
   }
 ]

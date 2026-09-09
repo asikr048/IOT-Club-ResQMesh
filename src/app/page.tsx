@@ -61,7 +61,8 @@ export default function Home() {
     fetchData,
     updateDispatch,
     sendBroadcast,
-    simulateSos
+    simulateSos,
+    toggleMaterialDispatch
   } = useMeshData();
 
   // Active view tab in Command Center
@@ -264,6 +265,7 @@ export default function Home() {
                   }}
                   onOpenDispatchModal={handleOpenDispatch}
                   onQuickDispatch={handleQuickDispatch}
+                  onToggleMaterialDispatch={toggleMaterialDispatch}
                 />
               </div>
 

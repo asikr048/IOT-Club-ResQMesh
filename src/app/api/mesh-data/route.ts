@@ -195,6 +195,86 @@ export async function POST(request: Request) {
         }, { headers: corsHeaders });
       }
 
+      // Action 1.5: Toggle Material Dispatch ("On Mission" per item)
+      if (action === 'toggle_material_dispatch') {
+        const { request_id, material } = parsedObj;
+        const matStr = String(material || '').trim();
+
+        const reqIndex = meshStore.help_requests.findIndex(r => r.request_id === request_id);
+        if (reqIndex === -1) {
+          return NextResponse.json({ success: false, error: 'Help request not found' }, { status: 404, headers: corsHeaders });
+        }
+
+        const existing = meshStore.help_requests[reqIndex];
+        const currentDispatched = existing.dispatched_materials || [];
+        const isDispatchedAlready = currentDispatched.includes(matStr);
+        const updatedDispatched = isDispatchedAlready
+          ? currentDispatched.filter(m => m !== matStr)
+          : [...currentDispatched, matStr];
+
+        const aidReq = existing.aid_required || [];
+        const aidArr = existing.aid_arrived || [];
+        
+        // Full aid arrived check: strictly all requested aids are 'yes'
+        const fullAidArrived = aidReq.length > 0 &&
+          aidArr.length >= aidReq.length &&
+          aidArr.every(v => v === 'yes');
+
+        const anyAidArrived = aidArr.some(v => v === 'yes');
+        const anyOnMission = updatedDispatched.length > 0;
+        const isSaved = fullAidArrived;
+
+        let newStatus: DispatchStatus = 'PENDING';
+        if (isSaved) {
+          newStatus = 'RESOLVED';
+        } else if (anyAidArrived || anyOnMission) {
+          newStatus = 'IN_TRANSIT';
+        } else {
+          newStatus = 'PENDING';
+        }
+
+        meshStore.help_requests[reqIndex] = {
+          ...existing,
+          dispatched_materials: updatedDispatched,
+          dispatch_status: newStatus,
+          dispatched: (isSaved || anyOnMission) ? 'yes' : 'no',
+          is_saved: isSaved,
+          all_aid_arrived: fullAidArrived,
+          dispatched_team: anyOnMission ? (existing.dispatched_team || 'Response Unit (On Mission)') : (isSaved ? 'Rescue Team Alpha' : null),
+          dispatch_time: anyOnMission && !existing.dispatch_time ? new Date().toISOString() : existing.dispatch_time,
+          resolved_time: isSaved ? (existing.resolved_time || new Date().toISOString()) : null
+        };
+
+        const actionWord = isDispatchedAlready ? 'Recalled from mission' : 'Dispatched on mission';
+        meshStore.system_logs.unshift({
+          id: `LOG-${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          level: 'ALERT',
+          text: `📦 [${matStr}]: ${actionWord} for Node ${existing.node_id}. Card status: ${newStatus}`
+        });
+
+        const pkt: MeshPacketLog = {
+          id: `PKT-${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          source: "GW-01",
+          destination: existing.node_id,
+          hops: 2,
+          rssi: -65,
+          snr: 9.0,
+          type: "ACK",
+          payload: `MAT_DISPATCH: REQ=${request_id}; ITEM="${matStr}"; ACTION=${isDispatchedAlready ? 'RECALL' : 'DISPATCH'}; STATUS=${newStatus}`
+        };
+        meshStore.recent_packets = [pkt, ...(meshStore.recent_packets || [])].slice(0, 20);
+
+        recalculateStats();
+
+        return NextResponse.json({
+          success: true,
+          message: `Material "${matStr}" ${isDispatchedAlready ? 'recalled' : 'dispatched on mission'}`,
+          help_request: meshStore.help_requests[reqIndex]
+        }, { headers: corsHeaders });
+      }
+
       // Action 2: Simulate Receiving New LoRa SOS Packet
       if (action === 'simulate_sos') {
         const { victim_name, location_name, latitude, longitude, urgency, message, needed_resources } = parsedObj;

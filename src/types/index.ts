@@ -38,13 +38,16 @@ export interface HelpRequest {
   message: string;
   needed_resources: string[];
   aid_required?: string[]; // 'rescue boat', 'oxygen cylinder', 'drinking water', 'first aid box'
+  aid_arrived?: string[]; // 1-to-1 match with aid_required e.g. ["yes", "yes", "no", "no"]
+  dispatched_materials?: string[]; // items currently 'On Mission'
+  all_aid_arrived?: boolean; // true only when full aid has arrived
   rescue_needed?: boolean; // 'Rescue Needed'
   rescue_arrived?: boolean; // 'Resque Arrived'
   medicine_arrived?: boolean; // 'Medicine arrived'
   medicine_dispatched?: boolean; // 'medicine disatched'
   dispatched?: 'yes' | 'no' | string; // 'dispatched yes or no'
-  is_saved?: boolean; // 'if yes then saved one'
-  dispatch_status: DispatchStatus; // 'dispatch hoise kina'
+  is_saved?: boolean; // 'if full aid arrived then saved one'
+  dispatch_status: DispatchStatus; // 'dispatch hoise kina' (PENDING, DISPATCHED, IN_TRANSIT, RESOLVED)
   dispatched_team: string | null;
   team_contact?: string | null;
   assigned_vehicle?: VehicleType | null;
