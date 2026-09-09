@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Settings, Check, Globe, RefreshCw, AlertCircle, ShieldCheck, Database } from 'lucide-react';
+import { X, Settings, Check, Globe, RefreshCw, AlertCircle, ShieldCheck, Database, UploadCloud } from 'lucide-react';
 
 interface ApiConfigModalProps {
   isOpen: boolean;
@@ -220,6 +220,19 @@ export const ApiConfigModal: React.FC<ApiConfigModalProps> = ({
                 {sound ? '🔊 Audio Siren Active' : '🔇 Audio Muted'}
               </button>
             </div>
+          </div>
+
+          {/* HTTPS Ingestion Endpoint Information */}
+          <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 text-xs font-mono space-y-1">
+            <div className="flex items-center justify-between text-slate-300 font-bold">
+              <span className="flex items-center gap-1.5 text-cyan-400">
+                <UploadCloud className="w-3.5 h-3.5" /> HTTPS JSON Ingestion Endpoint
+              </span>
+              <span className="text-[10px] text-emerald-400 font-normal">Active (Ready)</span>
+            </div>
+            <p className="text-[11px] text-slate-400 font-sans">
+              External devices, Python scripts & LoRa gateways can POST JSON files or payloads to: <code className="text-cyan-300 font-mono">/api/mesh-data</code>
+            </p>
           </div>
 
           {/* Action Buttons */}

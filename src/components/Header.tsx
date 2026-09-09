@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Radio, Volume2, VolumeX, RefreshCw, Settings, AlertTriangle, Send, Activity, ShieldAlert, Cpu } from 'lucide-react';
+import { Radio, Volume2, VolumeX, RefreshCw, Settings, AlertTriangle, Send, Activity, ShieldAlert, Cpu, UploadCloud } from 'lucide-react';
 import { NetworkInfo } from '@/types';
 
 interface HeaderProps {
@@ -16,6 +16,7 @@ interface HeaderProps {
   onOpenApiModal: () => void;
   onOpenSosModal: () => void;
   onOpenBroadcastModal: () => void;
+  onOpenUploadModal: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -30,6 +31,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenApiModal,
   onOpenSosModal,
   onOpenBroadcastModal,
+  onOpenUploadModal,
 }) => {
   const [currentTime, setCurrentTime] = useState<string>('');
 
@@ -156,10 +158,20 @@ export const Header: React.FC<HeaderProps> = ({
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-cyan-400' : ''}`} />
           </button>
 
+          {/* Upload JSON File Button */}
+          <button
+            onClick={onOpenUploadModal}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyan-600/20 hover:bg-cyan-600/30 border border-cyan-500/40 text-cyan-300 transition active:scale-95 shadow-[0_0_10px_rgba(6,182,212,0.15)]"
+            title="Upload and ingest JSON emergency file over HTTPS"
+          >
+            <UploadCloud className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Upload</span> JSON
+          </button>
+
           {/* API Link Config Modal */}
           <button
             onClick={onOpenApiModal}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyan-950/60 hover:bg-cyan-900/60 border border-cyan-500/30 text-cyan-300 transition active:scale-95"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition active:scale-95"
             title="Configure API Endpoint URL & Polling"
           >
             <Settings className="w-3.5 h-3.5" />

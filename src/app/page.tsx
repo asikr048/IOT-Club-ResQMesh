@@ -13,6 +13,7 @@ import { DispatchModal } from '@/components/DispatchModal';
 import { ApiConfigModal } from '@/components/ApiConfigModal';
 import { SimulateSosModal } from '@/components/SimulateSosModal';
 import { BroadcastModal } from '@/components/BroadcastModal';
+import { UploadJsonModal } from '@/components/UploadJsonModal';
 import { 
   AlertOctagon, 
   Map, 
@@ -65,6 +66,7 @@ export default function Home() {
 
   // Active view tab in Command Center
   const [activeViewTab, setActiveViewTab] = useState<'OPERATIONS' | 'TOPOLOGY' | 'LOGS'>('OPERATIONS');
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState<boolean>(false);
   const [modalTargetRequest, setModalTargetRequest] = useState<HelpRequest | null>(null);
 
   const handleOpenDispatch = (req: HelpRequest) => {
@@ -115,6 +117,7 @@ export default function Home() {
         onOpenApiModal={() => setIsApiModalOpen(true)}
         onOpenSosModal={() => setIsSimulateSosModalOpen(true)}
         onOpenBroadcastModal={() => setIsBroadcastModalOpen(true)}
+        onOpenUploadModal={() => setIsUploadModalOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -352,6 +355,12 @@ export default function Home() {
         isOpen={isBroadcastModalOpen}
         onClose={() => setIsBroadcastModalOpen(false)}
         onSendBroadcast={sendBroadcast}
+      />
+
+      <UploadJsonModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        onSuccess={() => fetchData()}
       />
 
       {/* Footer Info Strip */}

@@ -120,6 +120,38 @@ The dashboard connects to any API returning the following JSON schema (and inclu
 
 ---
 
+## 📥 Accepting JSON Files over HTTPS
+
+The API endpoint (`/api/mesh-data` or `/api/upload`) accepts incoming JSON files and payloads via HTTPS `POST` requests. It automatically extracts:
+- `number_of_node`: total nodes
+- `node_location`: node GPS coordinates, battery, and role
+- `pending_help_message`: emergency SOS messages & victim details
+- `dispatch_hoise_kina`: dispatch status (`yes`/`no`/`in_transit`/`resolved` or `DISPATCHED`/`PENDING`)
+
+### 1. Upload a `.json` File via cURL (Multipart Form Upload):
+```bash
+curl -X POST -F "file=@emergency_sample.json" https://<your-vercel-domain>/api/mesh-data
+```
+
+### 2. Send Raw JSON Payload via cURL:
+```bash
+curl -X POST -H "Content-Type: application/json" -d @emergency_sample.json https://<your-vercel-domain>/api/mesh-data
+```
+
+### 3. Send from Python (e.g. Raspberry Pi / Gateway):
+```python
+import requests
+
+with open('emergency_sample.json', 'rb') as f:
+    r = requests.post('https://<your-vercel-domain>/api/mesh-data', files={'file': f})
+    print(r.json())
+```
+
+### 4. Upload directly from the UI:
+Click the **Upload JSON** button in the dashboard navigation bar to drag and drop or select any `.json` file from your computer.
+
+---
+
 ## 🚀 One-Click Deployment to Vercel
 
 1. Push this repository to GitHub or GitLab.
