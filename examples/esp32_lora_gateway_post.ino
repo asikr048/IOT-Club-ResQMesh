@@ -96,57 +96,81 @@ void sendEmergencyMeshTelemetry() {
 
   // -------------------------------------------------------------
   // Dynamic LoRa Mesh Data - 3 Nodes Setup
+  // Exact JSON Keys:
+  // - node_id
+  // - name
+  // - latitude, longitude
+  // - Rescue Needed ("yes" / "no")
+  // - Resque Arrived ("yes" / "no")
+  // - Medicine arrived ("yes" / "no")
+  // - medicine disatched ("yes" / "no")
+  // - aid required (["rescue boat", "oxygen cylinder", "drinking water", "first aid box"])
+  // - dispatched ("yes" / "no") -> if "yes", automatically saved!
   // -------------------------------------------------------------
-  int nodeCount = 3;
 
-  // Node 1: Master Gateway (at EOC / Base Station)
+  // Node 1: Master Gateway (EOC Station)
   float gwLat = 23.0159;
   float gwLng = 91.3976;
-  int gwBattery = 100;
-  int gwRssi = -45;
 
-  // Node 2: Mesh Relay Node (Intermediate Tower / Bridge)
+  // Node 2: Mesh Relay Station
   float rlyLat = 23.0489;
   float rlyLng = 91.4251;
-  int rlyBattery = 85;
-  int rlyRssi = -76;
 
-  // Node 3: Field Emergency SOS Node (Victim Location)
-  float victimLat = 23.0722;
-  float victimLng = 91.4650;
-  int victimBattery = 38;
-  int victimRssi = -98;
-  const char* victimName = "Rahim Uddin (Family of 5)";
-  const char* victimMsg  = "Water reached chest level, 5 members trapped on rooftop, need rescue boat";
-  const char* dispatchStatus = "no"; // "no" = PENDING, "yes" = DISPATCHED
+  // Node 3: Field Emergency SOS Node (Pending Request)
+  float sosLat = 23.0722;
+  float sosLng = 91.4650;
+  const char* rescueNeeded = "yes";
+  const char* resqueArrived = "no";
+  const char* medicineArrived = "no";
+  const char* medicineDispatched = "no";
+  const char* dispatchedStatus = "no"; // "no" = PENDING, "yes" = SAVED / RESOLVED
 
-  // Build JSON String for 3 nodes
-  String jsonPayload = "{";
-  jsonPayload += "\"number_of_node\":" + String(nodeCount) + ",";
+  // Build JSON Array for 3 nodes
+  String jsonPayload = "[";
   
-  // 3 Nodes Location Array
-  jsonPayload += "\"node_location\":[";
-  jsonPayload += "{\"node_id\":\"GW-01\",\"name\":\"Node 1 - EOC Master Gateway\",\"role\":\"GATEWAY\",\"latitude\":" + String(gwLat, 4) + ",\"longitude\":" + String(gwLng, 4) + ",\"battery_percentage\":" + String(gwBattery) + ",\"rssi\":" + String(gwRssi) + ",\"status\":\"ONLINE\"},";
-  jsonPayload += "{\"node_id\":\"RLY-02\",\"name\":\"Node 2 - Mesh Relay Station\",\"role\":\"RELAY\",\"latitude\":" + String(rlyLat, 4) + ",\"longitude\":" + String(rlyLng, 4) + ",\"battery_percentage\":" + String(rlyBattery) + ",\"rssi\":" + String(rlyRssi) + ",\"status\":\"ONLINE\"},";
-  jsonPayload += "{\"node_id\":\"SOS-03\",\"name\":\"Node 3 - Field Emergency Beacon\",\"role\":\"CLIENT_NODE\",\"latitude\":" + String(victimLat, 4) + ",\"longitude\":" + String(victimLng, 4) + ",\"battery_percentage\":" + String(victimBattery) + ",\"rssi\":" + String(victimRssi) + ",\"status\":\"SOS\"}";
-  jsonPayload += "],";
-
-  // Pending Help Messages Array ("dispatch hoise kina")
-  jsonPayload += "\"pending_help_message\":[";
+  // Node 1: GW-01
   jsonPayload += "{";
-  jsonPayload += "\"request_id\":\"SOS-301\",";
+  jsonPayload += "\"node_id\":\"GW-01\",";
+  jsonPayload += "\"name\":\"Node GW-01\",";
+  jsonPayload += "\"latitude\":" + String(gwLat, 4) + ",";
+  jsonPayload += "\"longitude\":" + String(gwLng, 4) + ",";
+  jsonPayload += "\"Rescue Needed\":\"no\",";
+  jsonPayload += "\"Resque Arrived\":\"no\",";
+  jsonPayload += "\"Medicine arrived\":\"no\",";
+  jsonPayload += "\"medicine disatched\":\"no\",";
+  jsonPayload += "\"aid required\":[],";
+  jsonPayload += "\"dispatched\":\"no\"";
+  jsonPayload += "},";
+
+  // Node 2: RLY-02
+  jsonPayload += "{";
+  jsonPayload += "\"node_id\":\"RLY-02\",";
+  jsonPayload += "\"name\":\"Node RLY-02\",";
+  jsonPayload += "\"latitude\":" + String(rlyLat, 4) + ",";
+  jsonPayload += "\"longitude\":" + String(rlyLng, 4) + ",";
+  jsonPayload += "\"Rescue Needed\":\"no\",";
+  jsonPayload += "\"Resque Arrived\":\"no\",";
+  jsonPayload += "\"Medicine arrived\":\"no\",";
+  jsonPayload += "\"medicine disatched\":\"no\",";
+  jsonPayload += "\"aid required\":[],";
+  jsonPayload += "\"dispatched\":\"no\"";
+  jsonPayload += "},";
+
+  // Node 3: SOS-03 (Emergency SOS Node)
+  jsonPayload += "{";
   jsonPayload += "\"node_id\":\"SOS-03\",";
-  jsonPayload += "\"victim_name\":\"" + String(victimName) + "\",";
-  jsonPayload += "\"location_name\":\"Muhuri Basin, Ward 3\",";
-  jsonPayload += "\"latitude\":" + String(victimLat, 4) + ",";
-  jsonPayload += "\"longitude\":" + String(victimLng, 4) + ",";
-  jsonPayload += "\"urgency\":\"CRITICAL\",";
-  jsonPayload += "\"message\":\"" + String(victimMsg) + "\",";
-  jsonPayload += "\"needed_resources\":[\"Rescue Boat\",\"Oxygen Cylinder\",\"Drinking Water\"],";
-  jsonPayload += "\"dispatch_hoise_kina\":\"" + String(dispatchStatus) + "\"";
+  jsonPayload += "\"name\":\"Node SOS-03\",";
+  jsonPayload += "\"latitude\":" + String(sosLat, 4) + ",";
+  jsonPayload += "\"longitude\":" + String(sosLng, 4) + ",";
+  jsonPayload += "\"Rescue Needed\":\"" + String(rescueNeeded) + "\",";
+  jsonPayload += "\"Resque Arrived\":\"" + String(resqueArrived) + "\",";
+  jsonPayload += "\"Medicine arrived\":\"" + String(medicineArrived) + "\",";
+  jsonPayload += "\"medicine disatched\":\"" + String(medicineDispatched) + "\",";
+  jsonPayload += "\"aid required\":[\"rescue boat\",\"oxygen cylinder\",\"drinking water\",\"first aid box\"],";
+  jsonPayload += "\"dispatched\":\"" + String(dispatchedStatus) + "\"";
   jsonPayload += "}";
+
   jsonPayload += "]";
-  jsonPayload += "}";
 
   Serial.println("\n[HTTP] Sending payload to: " + String(serverUrl));
   Serial.println("[HTTP] JSON Payload:");

@@ -120,15 +120,20 @@ export async function POST(request: Request) {
         const existing = meshStore.help_requests[reqIndex];
         const prevStatus = existing.dispatch_status;
 
+        const isSaved = dispatch_status === 'RESOLVED';
+        const isDispatched = dispatch_status === 'DISPATCHED' || dispatch_status === 'IN_TRANSIT' || isSaved;
+
         meshStore.help_requests[reqIndex] = {
           ...existing,
           dispatch_status: dispatch_status as DispatchStatus,
+          dispatched: isDispatched ? 'yes' : 'no',
+          is_saved: isSaved,
           dispatched_team: dispatched_team ? String(dispatched_team) : existing.dispatched_team,
           team_contact: team_contact ? String(team_contact) : existing.team_contact,
           assigned_vehicle: assigned_vehicle !== undefined ? (assigned_vehicle as any) : existing.assigned_vehicle,
           notes: notes ? String(notes) : existing.notes,
-          dispatch_time: dispatch_status === 'DISPATCHED' && !existing.dispatch_time ? new Date().toISOString() : existing.dispatch_time,
-          resolved_time: dispatch_status === 'RESOLVED' ? new Date().toISOString() : existing.resolved_time
+          dispatch_time: isDispatched && !existing.dispatch_time ? new Date().toISOString() : existing.dispatch_time,
+          resolved_time: isSaved ? new Date().toISOString() : existing.resolved_time
         };
 
         const logEntry: SystemLog = {

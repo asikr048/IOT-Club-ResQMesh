@@ -133,23 +133,27 @@ export function useMeshData() {
         if (!prev) return prev;
         const updatedRequests = prev.help_requests.map(req => {
           if (req.request_id === requestId) {
+            const isSaved = status === 'RESOLVED';
+            const isDispatched = status === 'DISPATCHED' || status === 'IN_TRANSIT' || isSaved;
             return {
               ...req,
               dispatch_status: status,
+              dispatched: (isDispatched ? 'yes' : 'no') as 'yes' | 'no',
+              is_saved: isSaved,
               dispatched_team: dispatchedTeam || req.dispatched_team,
               team_contact: teamContact || req.team_contact,
               assigned_vehicle: assignedVehicle !== undefined ? assignedVehicle : req.assigned_vehicle,
               notes: notes || req.notes,
-              dispatch_time: status === 'DISPATCHED' ? new Date().toISOString() : req.dispatch_time,
-              resolved_time: status === 'RESOLVED' ? new Date().toISOString() : req.resolved_time
+              dispatch_time: isDispatched && !req.dispatch_time ? new Date().toISOString() : req.dispatch_time,
+              resolved_time: isSaved ? new Date().toISOString() : req.resolved_time
             };
           }
           return req;
         });
 
-        const pending = updatedRequests.filter(r => r.dispatch_status === 'PENDING').length;
-        const dispatched = updatedRequests.filter(r => r.dispatch_status === 'DISPATCHED' || r.dispatch_status === 'IN_TRANSIT').length;
-        const resolved = updatedRequests.filter(r => r.dispatch_status === 'RESOLVED').length;
+        const pending = updatedRequests.filter(r => r.dispatch_status === 'PENDING' && !r.is_saved).length;
+        const dispatched = updatedRequests.filter(r => (r.dispatch_status === 'DISPATCHED' || r.dispatch_status === 'IN_TRANSIT') && !r.is_saved).length;
+        const resolved = updatedRequests.filter(r => r.dispatch_status === 'RESOLVED' || r.is_saved).length;
 
         return {
           ...prev,

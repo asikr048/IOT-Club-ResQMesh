@@ -1,63 +1,43 @@
-{
-  "number_of_node": 3,
-  "node_location": [
-    {
-      "node_id": "GW-01",
-      "name": "Node 1 - EOC Master Gateway",
-      "role": "GATEWAY",
-      "latitude": 23.0159,
-      "longitude": 91.3976,
-      "altitude": 18.2,
-      "battery_percentage": 100,
-      "battery_voltage": 13.8,
-      "rssi": -45,
-      "snr": 12.5,
-      "hop_count": 0,
-      "status": "ONLINE"
-    },
-    {
-      "node_id": "RLY-02",
-      "name": "Node 2 - Mesh Relay Station",
-      "role": "RELAY",
-      "latitude": 23.0489,
-      "longitude": 91.4251,
-      "altitude": 35.0,
-      "battery_percentage": 85,
-      "battery_voltage": 4.1,
-      "rssi": -76,
-      "snr": 8.3,
-      "hop_count": 1,
-      "parent_node_id": "GW-01",
-      "status": "ONLINE"
-    },
-    {
-      "node_id": "SOS-03",
-      "name": "Node 3 - Field Emergency Beacon",
-      "role": "CLIENT_NODE",
-      "latitude": 23.0722,
-      "longitude": 91.4650,
-      "altitude": 9.5,
-      "battery_percentage": 38,
-      "battery_voltage": 3.65,
-      "rssi": -98,
-      "snr": -2.5,
-      "hop_count": 2,
-      "parent_node_id": "RLY-02",
-      "status": "SOS"
-    }
-  ],
-  "pending_help_message": [
-    {
-      "request_id": "SOS-301",
-      "node_id": "SOS-03",
-      "victim_name": "Rahim Uddin (Family of 5)",
-      "location_name": "Muhuri Basin, Ward 3",
-      "latitude": 23.0722,
-      "longitude": 91.4650,
-      "urgency": "CRITICAL",
-      "message": "Water reached 2nd floor, elderly patient needs oxygen and boat rescue urgently.",
-      "needed_resources": ["Rescue Boat", "Oxygen Cylinder", "Drinking Water"],
-      "dispatch_hoise_kina": "no"
-    }
-  ]
-}
+[
+  {
+    "node_id": "GW-01",
+    "name": "Node GW-01",
+    "latitude": 23.0159,
+    "longitude": 91.3976,
+    "Rescue Needed": "no",
+    "Resque Arrived": "no",
+    "Medicine arrived": "no",
+    "medicine disatched": "no",
+    "aid required": [],
+    "dispatched": "no"
+  },
+  {
+    "node_id": "RLY-02",
+    "name": "Node RLY-02",
+    "latitude": 23.0489,
+    "longitude": 91.4251,
+    "Rescue Needed": "no",
+    "Resque Arrived": "no",
+    "Medicine arrived": "no",
+    "medicine disatched": "no",
+    "aid required": [],
+    "dispatched": "no"
+  },
+  {
+    "node_id": "SOS-03",
+    "name": "Node SOS-03",
+    "latitude": 23.0722,
+    "longitude": 91.4650,
+    "Rescue Needed": "yes",
+    "Resque Arrived": "no",
+    "Medicine arrived": "no",
+    "medicine disatched": "no",
+    "aid required": [
+      "rescue boat",
+      "oxygen cylinder",
+      "drinking water",
+      "first aid box"
+    ],
+    "dispatched": "no"
+  }
+]

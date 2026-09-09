@@ -72,14 +72,21 @@ const INITIAL_DATA: FullMeshDataResponse = {
     {
       request_id: "SOS-301",
       node_id: "SOS-03",
-      victim_name: "Rahim Uddin (Family of 5)",
+      victim_name: "Node SOS-03",
       contact_info: "LoRa ID #03, VHF Ch 16",
-      location_name: "Muhuri Basin, Ward 3",
+      location_name: "Sector (23.0722, 91.4650)",
       latitude: 23.0722,
       longitude: 91.4650,
       urgency: "CRITICAL",
-      message: "Water reached chest level, 5 members trapped on rooftop without drinking water. Urgent rescue boat needed.",
-      needed_resources: ["Rescue Boat", "Oxygen Cylinder", "Drinking Water", "First Aid"],
+      message: "Trapped in flood sector. Urgent rescue needed. Aid required: rescue boat, oxygen cylinder, drinking water, first aid box.",
+      needed_resources: ["Rescue Boat", "Oxygen Cylinder", "Drinking Water", "First Aid Box"],
+      aid_required: ["rescue boat", "oxygen cylinder", "drinking water", "first aid box"],
+      rescue_needed: true,
+      rescue_arrived: false,
+      medicine_arrived: false,
+      medicine_dispatched: false,
+      dispatched: "no",
+      is_saved: false,
       dispatch_status: "PENDING", // dispatch hoise kina -> NO
       dispatched_team: null,
       team_contact: null,
@@ -176,9 +183,9 @@ export function setMeshStore(newStore: FullMeshDataResponse): void {
 
 export function recalculateStats(): void {
   const store = getMeshStore();
-  const pending = store.help_requests.filter(r => r.dispatch_status === 'PENDING').length;
-  const dispatched = store.help_requests.filter(r => r.dispatch_status === 'DISPATCHED' || r.dispatch_status === 'IN_TRANSIT').length;
-  const resolved = store.help_requests.filter(r => r.dispatch_status === 'RESOLVED').length;
+  const pending = store.help_requests.filter(r => r.dispatch_status === 'PENDING' && !r.is_saved).length;
+  const dispatched = store.help_requests.filter(r => (r.dispatch_status === 'DISPATCHED' || r.dispatch_status === 'IN_TRANSIT') && !r.is_saved).length;
+  const resolved = store.help_requests.filter(r => r.dispatch_status === 'RESOLVED' || r.is_saved).length;
   const activeNodes = store.nodes.filter(n => n.status !== 'OFFLINE').length;
 
   store.network.total_nodes = store.nodes.length;

@@ -29,7 +29,7 @@ export interface MeshNode {
 export interface HelpRequest {
   request_id: string;
   node_id: string;
-  victim_name: string;
+  victim_name?: string;
   contact_info?: string;
   location_name: string;
   latitude: number;
@@ -37,6 +37,13 @@ export interface HelpRequest {
   urgency: UrgencyLevel;
   message: string;
   needed_resources: string[];
+  aid_required?: string[]; // 'rescue boat', 'oxygen cylinder', 'drinking water', 'first aid box'
+  rescue_needed?: boolean; // 'Rescue Needed'
+  rescue_arrived?: boolean; // 'Resque Arrived'
+  medicine_arrived?: boolean; // 'Medicine arrived'
+  medicine_dispatched?: boolean; // 'medicine disatched'
+  dispatched?: 'yes' | 'no' | string; // 'dispatched yes or no'
+  is_saved?: boolean; // 'if yes then saved one'
   dispatch_status: DispatchStatus; // 'dispatch hoise kina'
   dispatched_team: string | null;
   team_contact?: string | null;

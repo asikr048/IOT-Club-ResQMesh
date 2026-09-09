@@ -175,9 +175,9 @@ export const TacticalMapInner: React.FC<TacticalMapInnerProps> = ({
 
     // 3. Render SOS Emergency Help Requests (Prominent pulsating victim pins)
     helpRequests.forEach(req => {
-      const isPending = req.dispatch_status === 'PENDING';
-      const isDispatched = req.dispatch_status === 'DISPATCHED' || req.dispatch_status === 'IN_TRANSIT';
-      const isResolved = req.dispatch_status === 'RESOLVED';
+      const isSaved = req.is_saved || req.dispatched === 'yes' || req.dispatch_status === 'RESOLVED';
+      const isDispatched = !isSaved && (req.dispatch_status === 'DISPATCHED' || req.dispatch_status === 'IN_TRANSIT');
+      const isPending = !isSaved && !isDispatched;
       const isSelected = selectedRequest?.request_id === req.request_id;
 
       let pinHtml = '';
@@ -200,10 +200,10 @@ export const TacticalMapInner: React.FC<TacticalMapInnerProps> = ({
             </div>
           </div>
         `;
-      } else if (isResolved) {
+      } else if (isSaved) {
         pinHtml = `
-          <div class="relative flex items-center justify-center cursor-pointer opacity-70">
-            <div class="w-6 h-6 rounded-full bg-emerald-600 border border-white flex items-center justify-center text-white text-[10px]">
+          <div class="relative flex items-center justify-center cursor-pointer">
+            <div class="w-7 h-7 rounded-full bg-emerald-600 border-2 border-emerald-300 flex items-center justify-center text-white text-xs font-bold shadow-[0_0_12px_#10b981]">
               ✓
             </div>
           </div>
@@ -219,40 +219,48 @@ export const TacticalMapInner: React.FC<TacticalMapInnerProps> = ({
 
       const sosMarker = L.marker([req.latitude, req.longitude], { icon: sosIcon });
 
-      const statusBadge = isPending
-        ? '<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-red-500/20 text-red-400 border border-red-500/40">PENDING (অপেক্ষমান)</span>'
+      const statusBadge = isSaved
+        ? '<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-[0_0_8px_rgba(16,185,129,0.3)]">SAVED (উদ্ধার সম্পন্ন)</span>'
         : isDispatched
         ? '<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-amber-500/20 text-amber-400 border border-amber-500/40">DISPATCHED (প্রেরিত)</span>'
-        : '<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">RESOLVED (সম্পন্ন)</span>';
+        : '<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-red-500/20 text-red-400 border border-red-500/40">PENDING (সাহায্য প্রয়োজন)</span>';
+
+      const aidList = req.aid_required && req.aid_required.length > 0 
+        ? req.aid_required 
+        : (req.needed_resources || []);
+
+      const aidBadges = aidList.map(a => `<span class="px-1.5 py-0.5 rounded bg-slate-800 text-cyan-300 border border-slate-700 text-[10px] font-mono">${a}</span>`).join(' ');
 
       const popupHtml = `
-        <div class="p-2 font-sans min-w-[240px]">
+        <div class="p-2.5 font-sans min-w-[240px]">
           <div class="flex items-center justify-between border-b border-slate-700 pb-1.5 mb-2">
-            <span class="font-mono font-bold text-xs text-red-400">${req.request_id}</span>
+            <span class="font-mono font-bold text-xs text-red-400">Node ${req.node_id}</span>
             ${statusBadge}
           </div>
-          <div class="text-sm font-bold text-white mb-0.5">${req.victim_name}</div>
-          <div class="text-xs text-slate-400 mb-2 flex items-center gap-1">
-            📍 ${req.location_name}
+          <div class="text-xs font-mono text-cyan-300 mb-1 flex items-center gap-1">
+            📍 ${req.latitude.toFixed(4)}°N, ${req.longitude.toFixed(4)}°E
           </div>
-          <p class="text-xs text-slate-200 bg-slate-900/80 p-2 rounded border border-slate-800 mb-2">
+          <p class="text-xs text-slate-200 bg-slate-900/80 p-2 rounded border border-slate-800 mb-2 font-mono">
             "${req.message}"
           </p>
-          <div class="text-[11px] text-slate-400 mb-2">
-            <span class="text-slate-500">Needed:</span> ${req.needed_resources.join(', ')}
-          </div>
+          ${aidList.length > 0 ? `
+            <div class="text-[11px] mb-2 flex items-center gap-1 flex-wrap">
+              <span class="text-slate-400 font-mono text-[10px]">Aid:</span>
+              ${aidBadges}
+            </div>
+          ` : ''}
           ${req.dispatched_team ? `
             <div class="text-[11px] font-mono text-amber-300 bg-amber-950/40 p-1.5 rounded border border-amber-800/40 mb-2">
               Team: ${req.dispatched_team}
             </div>
           ` : ''}
-          <div class="flex items-center justify-between pt-1 border-t border-slate-800">
+          <div class="flex items-center justify-between pt-1.5 border-t border-slate-800">
             <span class="text-[10px] font-mono text-slate-400">${new Date(req.timestamp).toLocaleTimeString()}</span>
             <button 
               id="btn-dispatch-${req.request_id}" 
-              class="px-2.5 py-1 text-xs font-bold rounded bg-red-600 hover:bg-red-500 text-white transition active:scale-95 shadow cursor-pointer"
+              class="px-2.5 py-1 text-xs font-bold rounded ${isSaved ? 'bg-emerald-700 hover:bg-emerald-600' : 'bg-red-600 hover:bg-red-500'} text-white transition active:scale-95 shadow cursor-pointer font-mono"
             >
-              ${isPending ? '⚡ Dispatch Team' : 'Update Status'}
+              ${isSaved ? '✓ Saved Record' : isDispatched ? 'Update Status' : '⚡ Dispatch Team'}
             </button>
           </div>
         </div>

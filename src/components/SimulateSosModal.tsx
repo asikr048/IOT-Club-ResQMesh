@@ -15,26 +15,35 @@ export const SimulateSosModal: React.FC<SimulateSosModalProps> = ({
   onClose,
   onSubmitSos,
 }) => {
-  const [victimName, setVictimName] = useState<string>('Habibur Rahman (Family of 5)');
-  const [locationName, setLocationName] = useState<string>('Chhagalnaiya Embankment, Sector 2');
-  const [latitude, setLatitude] = useState<number>(23.0450);
-  const [longitude, setLongitude] = useState<number>(91.4850);
+  const [nodeId, setNodeId] = useState<string>('SOS-03');
+  const [locationName, setLocationName] = useState<string>('Muhuri River Basin, Sector 3');
+  const [latitude, setLatitude] = useState<number>(23.0722);
+  const [longitude, setLongitude] = useState<number>(91.4650);
   const [urgency, setUrgency] = useState<UrgencyLevel>('CRITICAL');
-  const [message, setMessage] = useState<string>('Flood water reached chest level. Family stuck on tin roof, infant has high fever, urgent boat required.');
-  const [resources, setResources] = useState<string>('Rescue Boat, Infant Paracetamol, Pure Water');
+  const [message, setMessage] = useState<string>('Trapped by flash flood on rooftop. Need rescue boat, oxygen cylinder, and drinking water immediately.');
+  const [resources, setResources] = useState<string>('rescue boat, oxygen cylinder, drinking water, first aid box');
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const aidList = resources.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
     onSubmitSos({
-      victim_name: victimName,
+      node_id: nodeId,
+      victim_name: `Node ${nodeId}`,
       location_name: locationName,
       latitude: Number(latitude),
       longitude: Number(longitude),
       urgency,
       message,
-      needed_resources: resources.split(',').map(s => s.trim()).filter(Boolean)
+      needed_resources: aidList,
+      aid_required: aidList,
+      rescue_needed: true,
+      rescue_arrived: false,
+      medicine_arrived: false,
+      medicine_dispatched: false,
+      dispatched: 'no',
+      is_saved: false,
     });
     onClose();
   };
@@ -70,12 +79,12 @@ export const SimulateSosModal: React.FC<SimulateSosModalProps> = ({
         <form onSubmit={handleSubmit} className="p-5 space-y-3.5">
           <div>
             <label className="block text-xs font-mono uppercase tracking-wider text-slate-300 mb-1">
-              Victim Name / Group
+              Node Identifier (e.g. SOS-03)
             </label>
             <input
               type="text"
-              value={victimName}
-              onChange={(e) => setVictimName(e.target.value)}
+              value={nodeId}
+              onChange={(e) => setNodeId(e.target.value)}
               className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-slate-100 text-xs font-mono focus:outline-none focus:border-red-500"
               required
             />

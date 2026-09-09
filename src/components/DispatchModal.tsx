@@ -86,15 +86,28 @@ export const DispatchModal: React.FC<DispatchModalProps> = ({
         {/* SOS Details Summary */}
         <div className="p-4 bg-slate-950/40 border-b border-slate-800 text-xs space-y-1.5">
           <div className="flex items-center justify-between text-slate-300">
-            <span className="font-bold text-white text-sm">{request.victim_name}</span>
+            <span className="font-bold text-white text-sm font-mono flex items-center gap-1.5">
+              <Radio className="w-4 h-4 text-cyan-400" />
+              Node {request.node_id}
+            </span>
             <span className="text-red-400 font-mono font-semibold uppercase">{request.urgency} Urgency</span>
           </div>
-          <div className="text-slate-400">
-            📍 {request.location_name} ({request.latitude.toFixed(4)}, {request.longitude.toFixed(4)})
+          <div className="text-slate-400 font-mono">
+            📍 {request.latitude.toFixed(4)}°N, {request.longitude.toFixed(4)}°E ({request.location_name})
           </div>
           <p className="p-2 rounded bg-black/40 border border-slate-800/80 text-slate-300 font-mono">
             &ldquo;{request.message}&rdquo;
           </p>
+          {(request.aid_required || request.needed_resources) && (
+            <div className="flex items-center gap-1.5 flex-wrap pt-1">
+              <span className="text-[10px] font-mono text-slate-400">Aid Required:</span>
+              {(request.aid_required && request.aid_required.length > 0 ? request.aid_required : request.needed_resources).map((res, i) => (
+                <span key={i} className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-cyan-300 border border-slate-700 capitalize">
+                  {res}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Form Body */}
