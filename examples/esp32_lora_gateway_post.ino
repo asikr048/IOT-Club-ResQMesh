@@ -94,41 +94,55 @@ void sendEmergencyMeshTelemetry() {
   // - dispatch_hoise_kina ("no" / "yes" / "in_transit" / "resolved")
   // - of different string (telemetry, frequency, status strings)
 
-  // Example dynamic mock sensor/LoRa readings:
-  int nodeCount = 4;
-  float gatewayLat = 23.0159;
-  float gatewayLng = 91.3976;
-  int gatewayBattery = 98;
-  int gatewayRssi = -55;
+  // -------------------------------------------------------------
+  // Dynamic LoRa Mesh Data - 3 Nodes Setup
+  // -------------------------------------------------------------
+  int nodeCount = 3;
 
-  float victimLat = 23.0360;
-  float victimLng = 91.5120;
+  // Node 1: Master Gateway (at EOC / Base Station)
+  float gwLat = 23.0159;
+  float gwLng = 91.3976;
+  int gwBattery = 100;
+  int gwRssi = -45;
+
+  // Node 2: Mesh Relay Node (Intermediate Tower / Bridge)
+  float rlyLat = 23.0489;
+  float rlyLng = 91.4251;
+  int rlyBattery = 85;
+  int rlyRssi = -76;
+
+  // Node 3: Field Emergency SOS Node (Victim Location)
+  float victimLat = 23.0722;
+  float victimLng = 91.4650;
+  int victimBattery = 38;
+  int victimRssi = -98;
   const char* victimName = "Rahim Uddin (Family of 5)";
-  const char* victimMsg  = "Water reached 2nd floor, urgent boat required";
+  const char* victimMsg  = "Water reached chest level, 5 members trapped on rooftop, need rescue boat";
   const char* dispatchStatus = "no"; // "no" = PENDING, "yes" = DISPATCHED
 
-  // Build JSON String (No extra libraries required)
+  // Build JSON String for 3 nodes
   String jsonPayload = "{";
   jsonPayload += "\"number_of_node\":" + String(nodeCount) + ",";
   
-  // Nodes Location Array
+  // 3 Nodes Location Array
   jsonPayload += "\"node_location\":[";
-  jsonPayload += "{\"node_id\":\"ESP32-GW-01\",\"name\":\"ESP32 LoRa Gateway\",\"role\":\"GATEWAY\",\"latitude\":" + String(gatewayLat, 4) + ",\"longitude\":" + String(gatewayLng, 4) + ",\"battery_percentage\":" + String(gatewayBattery) + ",\"rssi\":" + String(gatewayRssi) + ",\"status\":\"ONLINE\"},";
-  jsonPayload += "{\"node_id\":\"NODE-SOS-02\",\"name\":\"Field Beacon Node 2\",\"role\":\"CLIENT_NODE\",\"latitude\":" + String(victimLat, 4) + ",\"longitude\":" + String(victimLng, 4) + ",\"battery_percentage\":42,\"rssi\":-94,\"status\":\"SOS\"}";
+  jsonPayload += "{\"node_id\":\"GW-01\",\"name\":\"Node 1 - EOC Master Gateway\",\"role\":\"GATEWAY\",\"latitude\":" + String(gwLat, 4) + ",\"longitude\":" + String(gwLng, 4) + ",\"battery_percentage\":" + String(gwBattery) + ",\"rssi\":" + String(gwRssi) + ",\"status\":\"ONLINE\"},";
+  jsonPayload += "{\"node_id\":\"RLY-02\",\"name\":\"Node 2 - Mesh Relay Station\",\"role\":\"RELAY\",\"latitude\":" + String(rlyLat, 4) + ",\"longitude\":" + String(rlyLng, 4) + ",\"battery_percentage\":" + String(rlyBattery) + ",\"rssi\":" + String(rlyRssi) + ",\"status\":\"ONLINE\"},";
+  jsonPayload += "{\"node_id\":\"SOS-03\",\"name\":\"Node 3 - Field Emergency Beacon\",\"role\":\"CLIENT_NODE\",\"latitude\":" + String(victimLat, 4) + ",\"longitude\":" + String(victimLng, 4) + ",\"battery_percentage\":" + String(victimBattery) + ",\"rssi\":" + String(victimRssi) + ",\"status\":\"SOS\"}";
   jsonPayload += "],";
 
   // Pending Help Messages Array ("dispatch hoise kina")
   jsonPayload += "\"pending_help_message\":[";
   jsonPayload += "{";
-  jsonPayload += "\"request_id\":\"SOS-ESP-" + String(millis() / 1000) + "\",";
-  jsonPayload += "\"node_id\":\"NODE-SOS-02\",";
+  jsonPayload += "\"request_id\":\"SOS-301\",";
+  jsonPayload += "\"node_id\":\"SOS-03\",";
   jsonPayload += "\"victim_name\":\"" + String(victimName) + "\",";
-  jsonPayload += "\"location_name\":\"Chhagalnaiya Sector 3\",";
+  jsonPayload += "\"location_name\":\"Muhuri Basin, Ward 3\",";
   jsonPayload += "\"latitude\":" + String(victimLat, 4) + ",";
   jsonPayload += "\"longitude\":" + String(victimLng, 4) + ",";
   jsonPayload += "\"urgency\":\"CRITICAL\",";
   jsonPayload += "\"message\":\"" + String(victimMsg) + "\",";
-  jsonPayload += "\"needed_resources\":[\"Rescue Boat\",\"Medical Kit\",\"Dry Food\"],";
+  jsonPayload += "\"needed_resources\":[\"Rescue Boat\",\"Oxygen Cylinder\",\"Drinking Water\"],";
   jsonPayload += "\"dispatch_hoise_kina\":\"" + String(dispatchStatus) + "\"";
   jsonPayload += "}";
   jsonPayload += "]";
