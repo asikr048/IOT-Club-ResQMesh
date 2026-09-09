@@ -263,14 +263,14 @@ export function normalizeIncomingJson(
       const node = parseSingleNode(rec, idx);
       importedNodes.push(node);
 
-      // Check if this item is also an emergency request
-      const hasRescueNeeded = getFlexibleValue(rec, 'Rescue Needed', 'rescue_needed', 'rescue needed') !== undefined;
-      const hasAid = getFlexibleValue(rec, 'aid required', 'aid_required', 'aid') !== undefined;
-      const hasDispatched = getFlexibleValue(rec, 'dispatched', 'dispatch_hoise_kina') !== undefined;
+      // Check if this item has an emergency SOS request
+      const rescueNeeded = parseFlexibleBoolean(getFlexibleValue(rec, 'Rescue Needed', 'rescue_needed', 'rescue needed', 'sos'));
+      const aidList = parseFlexibleList(getFlexibleValue(rec, 'aid required', 'aid_required', 'aid', 'needed_resources'));
+      const isDispatched = parseFlexibleBoolean(getFlexibleValue(rec, 'dispatched', 'dispatch_hoise_kina'));
       const hasMessage = getFlexibleValue(rec, 'message', 'pending_help_message') !== undefined;
       const isSosStatus = rec.status === 'SOS';
 
-      if (hasRescueNeeded || hasAid || hasDispatched || hasMessage || isSosStatus) {
+      if (rescueNeeded || aidList.length > 0 || isDispatched || hasMessage || isSosStatus) {
         importedRequests.push(parseSingleHelpRequest(rec, idx));
       }
     });
@@ -296,11 +296,12 @@ export function normalizeIncomingJson(
         const rec = n as Record<string, unknown>;
         importedNodes.push(parseSingleNode(rec, i));
         
-        // Also check if node item has emergency status
-        const hasRescueNeeded = getFlexibleValue(rec, 'Rescue Needed', 'rescue_needed', 'rescue needed') !== undefined;
-        const hasAid = getFlexibleValue(rec, 'aid required', 'aid_required', 'aid') !== undefined;
-        const hasDispatched = getFlexibleValue(rec, 'dispatched', 'dispatch_hoise_kina') !== undefined;
-        if (hasRescueNeeded || hasAid || hasDispatched || rec.status === 'SOS') {
+        // Also check if node item has active emergency
+        const rescueNeeded = parseFlexibleBoolean(getFlexibleValue(rec, 'Rescue Needed', 'rescue_needed', 'rescue needed', 'sos'));
+        const aidList = parseFlexibleList(getFlexibleValue(rec, 'aid required', 'aid_required', 'aid', 'needed_resources'));
+        const isDispatched = parseFlexibleBoolean(getFlexibleValue(rec, 'dispatched', 'dispatch_hoise_kina'));
+        const hasMessage = getFlexibleValue(rec, 'message', 'pending_help_message') !== undefined;
+        if (rescueNeeded || aidList.length > 0 || isDispatched || hasMessage || rec.status === 'SOS') {
           importedRequests.push(parseSingleHelpRequest(rec, i));
         }
       });
@@ -324,10 +325,10 @@ export function normalizeIncomingJson(
     const rootNodeId = getFlexibleValue(root, 'node_id', 'node id', 'node');
     if (rootNodeId && importedNodes.length === 0) {
       importedNodes.push(parseSingleNode(root, 0));
-      const hasRescueNeeded = getFlexibleValue(root, 'Rescue Needed', 'rescue_needed', 'rescue needed') !== undefined;
-      const hasAid = getFlexibleValue(root, 'aid required', 'aid_required') !== undefined;
-      const hasDispatched = getFlexibleValue(root, 'dispatched') !== undefined;
-      if (hasRescueNeeded || hasAid || hasDispatched || root.status === 'SOS') {
+      const rescueNeeded = parseFlexibleBoolean(getFlexibleValue(root, 'Rescue Needed', 'rescue_needed', 'rescue needed', 'sos'));
+      const aidList = parseFlexibleList(getFlexibleValue(root, 'aid required', 'aid_required', 'aid'));
+      const isDispatched = parseFlexibleBoolean(getFlexibleValue(root, 'dispatched'));
+      if (rescueNeeded || aidList.length > 0 || isDispatched || root.status === 'SOS') {
         importedRequests.push(parseSingleHelpRequest(root, 0));
       }
     }
