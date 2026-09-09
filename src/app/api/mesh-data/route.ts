@@ -9,6 +9,35 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
 };
 
+function tryParseLenientJson(str: string): unknown {
+  try {
+    return JSON.parse(str);
+  } catch {
+    // Attempt auto-repair for common IoT / microcontroller syntax issues:
+    // 1. Unquoted strings in arrays: [Medicine, Food, Water] -> ["Medicine", "Food", "Water"]
+    let repaired = str.replace(/\[\s*([a-zA-Z0-9_\s-]+(?:\s*,\s*[a-zA-Z0-9_\s-]+)*)\s*\]/g, (_match, contents) => {
+      const items = contents.split(',').map((item: string) => {
+        const trimmed = item.trim();
+        if (
+          (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+          (trimmed.startsWith("'") && trimmed.endsWith("'")) ||
+          !isNaN(Number(trimmed)) ||
+          ['true', 'false', 'null'].includes(trimmed.toLowerCase())
+        ) {
+          return trimmed;
+        }
+        return `"${trimmed.replace(/"/g, '\\"')}"`;
+      });
+      return `[${items.join(', ')}]`;
+    });
+
+    // 2. Trailing commas before } or ]
+    repaired = repaired.replace(/,\s*([\]}])/g, '$1');
+
+    return JSON.parse(repaired);
+  }
+}
+
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
@@ -74,7 +103,7 @@ export async function POST(request: Request) {
       }
 
       try {
-        body = JSON.parse(fileContent);
+        body = tryParseLenientJson(fileContent);
       } catch (parseErr) {
         return NextResponse.json(
           { success: false, error: 'Uploaded file is not valid JSON. Please verify formatting.' },
@@ -92,10 +121,10 @@ export async function POST(request: Request) {
       }
 
       try {
-        body = JSON.parse(rawText);
+        body = tryParseLenientJson(rawText);
       } catch (parseErr) {
         return NextResponse.json(
-          { success: false, error: 'Request body is not valid JSON. Please verify formatting.' },
+          { success: false, error: 'Request body is not valid JSON. Please ensure keys and string values use double quotes.' },
           { status: 400, headers: corsHeaders }
         );
       }
